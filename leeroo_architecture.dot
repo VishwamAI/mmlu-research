@@ -1,0 +1,37 @@
+digraph LeerooOrchestrator {
+    rankdir=LR;
+    node [shape=box];
+
+    subgraph cluster_0 {
+        label = "Leeroo Orchestrator";
+        style=filled;
+        color=lightgrey;
+        node [style=filled,color=white];
+
+        orchestrator [label="Orchestrator"];
+        generator [label="Query Generator"];
+        evaluator [label="Evaluator"];
+
+        orchestrator -> evaluator [label="Select Expert"];
+        generator -> orchestrator [label="Generate Query"];
+        evaluator -> generator [label="Evaluate Response"];
+    }
+
+    subgraph cluster_1 {
+        label = "Expert Models";
+        style=filled;
+        color=lightblue;
+        node [style=filled,color=white];
+
+        expert1 [label="Expert Model 1"];
+        expert2 [label="Expert Model 2"];
+        expertN [label="Expert Model N"];
+    }
+
+    orchestrator -> expert1 [label="Assign Query"];
+    orchestrator -> expert2 [label="Assign Query"];
+    orchestrator -> expertN [label="Assign Query"];
+    expert1 -> evaluator [label="Response"];
+    expert2 -> evaluator [label="Response"];
+    expertN -> evaluator [label="Response"];
+}

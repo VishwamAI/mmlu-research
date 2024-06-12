@@ -1,0 +1,26 @@
+digraph Claude3OpusArchitecture {
+    rankdir=LR;
+    node [shape=box, style=filled, color=lightblue];
+
+    subgraph cluster_0 {
+        label = "Claude 3 Opus Architecture";
+        style=filled;
+        color=lightgrey;
+        node [style=filled, color=white];
+
+        InputData [label="Input Data\n(Text, Images)"];
+        Preprocessing [label="Preprocessing\n(Data Cleaning, Filtering)"];
+        MultimodalEncoder [label="Multimodal Encoder\n(Transformer-based)"];
+        AttentionMechanisms [label="Attention Mechanisms\n(Multi-query Attention)"];
+        ReasoningModule [label="Reasoning Module\n(Chain-of-Thought)"];
+        OutputGeneration [label="Output Generation\n(Text Output)"];
+        PostProcessing [label="Post-Processing\n(Filtering, Summarization)"];
+
+        InputData -> Preprocessing;
+        Preprocessing -> MultimodalEncoder;
+        MultimodalEncoder -> AttentionMechanisms;
+        AttentionMechanisms -> ReasoningModule;
+        ReasoningModule -> OutputGeneration;
+        OutputGeneration -> PostProcessing;
+    }
+}

@@ -1,0 +1,1058 @@
+Leeroo Orchestrator:
+Elevating LLMs Performance Through Model Integration
+Alireza Mohammadshahi∗ A.Ali Shaikh∗ Majid Yazdani ∗
+Leeroo
+{alireza,my}@leeroo.com
+
+arXiv:2401.13979v1 [cs.CL] 25 Jan 2024
+
+Abstract
+In this paper, we propose an architecture to
+harness the collective knowledge of multiple
+trained LLMs to create a new state-of-the-art.
+At the core of this framework is a LLM-based
+orchestrator that is adept at picking the right
+underlying LLM experts for optimal task execution. Inspired by self-play in reinforcement
+learning, we created a loop of query generation,
+orchestration, and evaluation to generate training data for the orchestrator. Our evaluation
+focused on the MMLU benchmark, employing
+models with 7B, 13B, and 34B parameters available on Hugging Face. The results demonstrate
+new state-of-the-art open-source models: Our
+Leeroo orchestrator achieves performance on
+par with the Mixtral model while incurring only
+two-thirds of its cost. Moreover, increasing
+the allowed cost surpasses Mixtral’s accuracy
+by over 5% at the same cost level, reaching
+an accuracy of 75.9%. Further enhancements
+were observed when integrating GPT4 into the
+underlying model pool. The Leeroo orchestrator nearly matches GPT4’s performance at half
+the cost and even exceeds GPT4’s results with
+a 25%cost reduction. These findings illustrate
+the potential of our architecture in creating
+state-of-the-art and cost-effective LLMs by
+optimizing the synergy between multiple LLMs
+to achieve superior performance outcomes. 1
+
+1
+
+Introduction
+
+Developing foundational models is capitalintensive, necessitating vast computational
+resources and extensive high-quality data. Furthermore, the field is nearing the upper bounds of
+network size and data capacity, resulting in progressively marginal enhancements over existing models.
+This scenario echoes a critical juncture in human
+advancement, where the ’divide and conquer’
+∗
+
+All authors contributed equally to this work.
+The implementation and detailed results are available at
+https://github.com/Leeroo-AI/leeroo_orchestrator.
+1
+
+methodology emerges as a viable and scalable alternative. This approach entails cultivating domainspecific experts and judiciously harnessing them
+to forge a composite, high-performance model.
+The capabilities of existing LLMs appear to be
+complementary to a significant degree. An illustrative case is the MMLU benchmark (Hendrycks
+et al., 2021), where selecting the optimal opensource model for each question hypothetically
+yields an accuracy of 98%, at a computational cost
+akin to a model with 13 billion parameters. In
+contrast, GPT4 (OpenAI et al., 2023) achieves
+an accuracy of 86.4%, while Mixtral (Jiang
+et al., 2024), as the leading open-source model,
+reaches 70%. These figures suggest a considerable
+scope for optimization and growth in the field.
+Additionally, it is noteworthy that many practical
+tasks do not require intricate reasoning and can
+be efficiently addressed by models of moderate
+complexity; only a minority of tasks demand the
+advanced capabilities of a model like GPT4. The
+landscape of open-source models, with approximately 450,000 entries on Hugging Face,2 is both
+dynamic and expansive. The rapid proliferation of
+new models, particularly smaller, domain-focused
+ones, poses a challenge in tracking and leveraging
+the latest advancements effectively.
+We propose an architecture to learn to leverage
+many LLMs automatically and dynamically. At the
+heart of our innovation lies the Leeroo Orchestrator (Leeroo-orch ). This architecture is designed to
+intelligently identify the most suitable ’expert’ for
+each input while considering other optimization criteria to produce accurate responses. A key aspect of
+our Leeroo-orch is its strategic optimization based
+on predefined criteria such as speed, cost, and accuracy. For instance, when faced with a task that
+could be performed nearly equally well by a 7 billion parameter model or a more extensive 70 billion
+parameter model, the model will opt for the former
+2
+
+https://huggingface.co
+
+
+Leeroo Orchestrator
+
+Cost-aware Policy Network
+
+Query
+
+Expert 1
+
+Expert 2
+
+Expert 3
+
+...
+
+Response
+
+Expert N-1
+
+Expert N
+
+Figure 1: Leeroo Orchestrator architecture. It contains a policy network which selects the most suitable expert for
+each state, while considering the remaining budget.
+
+when factors like speed and cost-efficiency are prioritized. This approach ensures optimal resource
+utilization without compromising on quality.
+Our architecture marks a significant departure
+from traditional Mixture of Experts (MoE) models (Jiang et al., 2024; Fedus et al., 2021; Shazeer
+et al., 2017). While MoE relies on gating over
+various expert sub-networks within each layer to
+predict the next token, it requires all expert parameters to be loaded onto a single, high-end machine.
+This limitation hinders scalability in the number of
+experts. In contrast, each ’expert’ within our system operates independently and can be hosted on
+different machines, potentially utilizing varied neural network architectures. This flexibility means
+we can incorporate a vast array of experts, ranging
+from those specializing in system-level Java
+programming to those adept at curating travel experiences in London. Moreover, the Leeroo-orch can
+be tuned to leverage only smaller models, which
+is particularly beneficial for users without access
+to high-end computing resources (e.g., GPUs with
+100G). Furthermore, our architecture facilitates
+easy integration of additional optimization criteria,
+including cost, speed, and privacy considerations.
+The Leeroo-orch is trained using a methodology
+inspired by the self-play loop in reinforcement
+learning. We initiate training by generating a
+spectrum of questions, which are processed by
+the orchestrator, with each response evaluated
+and used as training data. This cycle enhances
+the Leeroo-orch ’s ability to determine the most
+suitable expert for any given query, refining its
+decision-making over time. As it encounters more
+diverse questions and assimilates the associated
+feedback, the Leeroo-orch becomes increasingly
+adept at discerning the strengths and weaknesses
+of different experts.
+Additionally, our system is designed to seam-
+
+lessly incorporate and learn from new expert
+models as they become available. When new
+models are introduced, the Leeroo-orch evaluates
+their performance across various questions
+within the loop. This continuous integration and
+assessment process enables the Leeroo-orch to
+effectively utilize these new resources, further
+enhancing its adaptability and scope. The more it
+engages in this learning cycle, the more proficient
+it becomes. This ensures not only a consistent
+improvement in results over time but also an ability
+to stay at the forefront of AI advancements.
+
+2
+
+Architecture
+
+Given a set of N expert models {e1 ,e2 ,...,eN } and
+a sequence of m queries {q1 ,q2 ,...,qm }, the Leeroo
+Orchestrator’s task is to optimally assign an expert
+model ei to each query qj . This assignment is governed by a policy function π, where π(qj ) = ei , selecting the most appropriate expert for each query.
+Each expert’s response to a query is evaluated
+using a function eval(ei (qj ))3 , yielding a score
+between 0 and 1 that reflects the response’s
+effectiveness. Additionally, there is an associated
+cost for each response, cost(ei (qj )), encompassing
+various factors such as computational resources
+and processing speed.
+The goal is to maximize the total evaluation
+scores while adhering to a budget constraint B.
+This is formally defined as:
+
+max
+π
+
+s.t.
+
+m
+X
+j=1
+m
+X
+
+eval(π(qj )(qj ))
+(1)
+cost(π(qj )(qj )) ≤ B
+
+j=1
+3
+The evaluation function can include the reference as an
+optional input.
+
+
+Serving Experts
+Expert N-1
+
+Expert N
+
+query
+prediction
+evaluation score
+
+...
+
+Matrix of
+evaluation
+scores
+
+...
+
+Universe
+Construction
+
+evaluation score
+
+Expert 3
+
+tra
+in
+
+Expert 2
+
+query
+
+Expert 1
+
+Dataset
+
+Query
+Generator
+
+Dataset
+query
+prediction
+evaluation score
+
+Orchestrator
+
+...
+
+...
+
+Open/Closed Source LLMs
+
+This problem is a decision-making task under
+resource constraints. At each step, the orchestrator,
+utilizing a small LLM as its policy network,
+determines the most suitable expert by balancing
+the remaining budget, the cost of each model, and
+the predicted effectiveness for the specific query.
+Models that would cause a budget overrun are
+excluded from consideration at each decision point.
+The policy network is trained to understand and
+weigh these factors, evolving over time to make
+increasingly efficient decisions.
+Universe Constructor
+
+Given the vast array of Large Language Models
+(LLMs) available for text generation4 , and
+considering the practical constraints on the
+number of models that can be actively served, we
+propose an optimization approach to construct
+a complementary universe of expert models,
+as illustrated in Figure 2. This universe aims
+to maximize performance by ensuring that the
+selected models are complementary to each other.
+The objective is to select a subset of expert
+models that, collectively, provide the best coverage
+and performance across a set of queries. Formally,
+given a set of models {e1 , e2 , ... , eM }, a set of
+queries {q1 ,q2 ,...,qL }, and the evaluations of these
+queries on the models eval(ej (qi )), we seek to
+4
+
+Evaluator
+
+Figure 3: Self-play loop for generating efficient training
+set for the Leeroo-orch .
+
+LLMs
+
+Figure 2: Universe Constructor module. Given a list of
+LLMs, it selects the most complementary ones to reach
+the maximum performance given the budget.
+
+2.1
+
+response
+
+According to the Huggingface platform (https:
+//huggingface.co), there are nearly 47,000 models available
+for the text generation task.
+
+find the optimal subset of models that maximizes
+the average best response for the queries. The
+optimization problem is formulated as:
+L
+
+max
+
+U ⊆M,|U |=k
+
+S(U ) =
+
+1X
+max eval(ej (qi ))
+j∈U
+L
+
+(2)
+
+i=1
+
+where k is the desired number of serving experts,
+M is the set of all available experts, and U is the
+subset of selected models from M . The function
+S(U ) represents the highest score achievable by
+the set U , quantifying the combined performance
+of the selected experts.
+Given the submodular nature of the maximum
+operation in our objective function, a greedy
+algorithm (see Algorithm 1) can be employed to
+find an approximate solution with acceptable error
+bounds (Krause and Golovin, 2014). This method
+is particularly effective for large-scale problems
+where exact optimization is computationally
+prohibitive.
+Further details on the generation of synthetic
+data for the universe construction is described in
+Section 2.2.
+2.2
+
+Synthetic Data Generation via Self-Play
+
+Drawing inspiration from self-play in reinforcement learning and the proven success of
+synthetic data in various AI domains, we propose
+a generate-orchestrate-evaluate loop to create
+effective training data for the Leeroo-orch , as
+illustrated in Figure 3.
+The process begins with the generation of
+a question by a specialized generator. This
+question is then processed by the orchestrator,
+
+
+Algorithm 1: Universe Construction.
+Result: Find
+the set U of size k that maximizes
+S(U ) according to equation (2)
+Initialize an empty set U = {}
+Set budget to 0
+while budget < k do
+1. Identify the model e∗i that, when added
+to U forming U ∗ , maximizes S(U ∗ )
+2. Update U to U ∗
+3. Increment budget by 1
+if No further improvement in S(U ) then
+break;
+end
+end
+
+which selects the most suitable expert model to
+generate a response. The focus is on generating or
+selecting questions that highlight the distinctions
+between the experts, as questions that are either
+too easy (answerable by all experts) or too difficult
+(answerable by none) offer minimal training value.
+Adding subdomains or employing hard questions
+in the prompt can increase the rate of generating
+high-signal questions.
+In scenarios with a limited number of experts,
+every generated question can be evaluated by all
+experts. However, with a larger pool of experts,
+we adopt an epsilon-greedy approach, primarily
+sampling experts predicted to perform well by the
+Leeroo-orch , supplemented by a few randomly
+chosen experts. This strategy ensures a diverse
+and informative training set, balancing exploration
+versus exploitation.
+Evaluating the responses, particularly in
+subjective domains, poses its own set of challenges.
+While the generator creates both questions and
+answers, assessing the quality and relevance of
+expert responses is not always straightforward.
+Nevertheless, past research suggests that evaluating
+a response is generally a less complex task than
+generating it. Therefore, the above loop can
+contribute valuable training signals even with
+imperfect evaluations.
+Moreover, the cycle of question generation,
+orchestration, and evaluation plays a pivotal role
+in creating the dataset necessary for universe construction. By sampling a diverse set of queries for
+each model and recording their performance, we
+gather the essential data required for the universe
+
+Model
+
+Accuracy Cost ($/1M tok)
+
+LLaMa 2 7B
+Mistral 7B
+LLaMa 2 13B
+Mixtral 8x7B
+LLaMa 2 70B
+Leeroo (opensource)
+
+45.3
+64.2
+54.8
+70.6
+69.9
+75.87
+
+0.2
+0.2
+0.26
+0.6
+0.9
+0.6
+
+GPT3.5
+GPT4-turbo
+Leeroo (mix)
+
+70.0
+86.4
+84.9
+
+1.5
+20
+10.2
+
+Table 1: Performance and cost of running LLMs on
+MMLU benchmark. Accuracy is calculated based on
+OpenLLM Leaderboard setting (Beeching et al., 2023).
+
+construction algorithm. Additionally, when new
+experts are introduced, they are explored through a
+set of queries to assess their complementarity with
+the existing pool of experts. Experts demonstrating
+a significant complementary impact are then
+considered for inclusion as part of the serving
+experts, thereby continuously enhancing and
+updating the expert selection process.
+As the cycle of question generation, orchestration, and evaluation progresses, the Leeroo-orch
+accumulates an ever-expanding wealth of training
+signals. This ongoing cycle allows it to grasp
+even the most subtle nuances in the capabilities
+of different experts. As a result, the accuracy and
+efficiency of the Leeroo-orch ’s decisions improve
+markedly with iterations of this self-play loop.
+
+3
+
+Related Work
+
+LLM Benchmarks. The landscape of benchmarks for assessing Large Language Models
+(LLMs) has grown significantly in recent
+years (Hendrycks et al., 2021; Beeching et al.,
+2023; Gao et al., 2021; Liang et al., 2023). The
+Massive Multitask Language Understanding
+(MMLU) benchmark (Hendrycks et al., 2021),
+with its multiple-choice questions across 57 diverse
+domains, is particularly notable for its breadth
+and depth. Similarly, the OpenLLM Leaderboard (Beeching et al., 2023) compares opensource LLMs across various datasets, including the
+ARC (Clark et al., 2018) and MMLU. The Holistic
+Evaluation of Language Models (HELM) (Liang
+et al., 2023) further extends this evaluation with 42
+scenarios covering a spectrum of use-cases. Our
+work utilizes the MMLU benchmark, leveraging its
+
+
+Open Source Models
+
+Performance on MMLU (%)
+
+77.5
+
+Mix of Closed and Open Source Models
+
+75.87
+
+75.0
+
+73.15
+
+72.5
+
+70.61
+
+70.0
+65.0 64.20
+0.2
+
+0.3
+
+0.4
+
+0.5
+
+0.6
+
+86.40
+
+81.19
+
+70.60
+
+67.5
+
+86.64
+
+84.88
+
+85
+69.90
+
+Leeroo (opensource)
+LLaMa2 70B
+Mistral 7B
+Mixtral 8x7B
+0.7
+0.8
+0.9
+
+80
+
+Leeroo (mix)
+GPT4
+GPT3.5
+
+75
+70.00
+
+70
+
+2.5
+
+Cost ($/1M tokens)
+
+5.0
+
+7.5
+
+10.0
+
+12.5
+
+15.0
+
+Cost ($/1M tokens)
+
+17.5
+
+20.0
+
+Figure 4: The performance of different Leeroo models and baselines on MMLU benchmark, given different budget
+limitations.
+
+diverse and challenging nature to demonstrate the
+in-depth capabilities and versatility of our model.
+Model Selection in LLMs. The task of selecting
+the most suitable LLM for a given input has
+been approached in various ways. Liu and
+Liu (2021); Ravaut et al. (2022) have proposed
+scoring or re-ranking models to optimize outputs
+in generative tasks like summarization. LLMBLENDER (Jiang et al., 2023b) employs an
+ensemble framework, integrating a ranking module
+with a generative module to enhance performance.
+FrugalGPT (Chen et al., 2023) adopts a sequential
+execution of experts, ceasing once satisfactory
+performance is achieved. However, this architecture sorts LLMs based on query-independent static
+estimations of model success probabilities, limiting
+its generalizability to new datasets. Moreover, its
+inference process, involving multiple model calls,
+can be resource-intensive. In contrast, our Leeroo
+Orchestrator uniquely identifies the most suitable
+expert for each query, significantly reducing the
+computational load by necessitating only a single
+expert per query. Furthermore, it is trained with a
+limited dataset, distinguishing it from prior works
+that require extensive data.
+
+4
+
+Results and Discussion
+
+4.1
+
+Experiment Setting
+
+Evaluation Setting. The evaluation of both baselines and Leeroo-orch models is conducted using
+the MMLU benchmark (Hendrycks et al., 2021),
+which comprises multiple-choice questions across
+57 diverse domains, such as mathematics, law, computer science, biology, and US history. To be compatible with OpenLLM Leaderboard (Beeching
+et al., 2023), we use Eleuther AI Harness (Gao
+
+et al., 2021) to evaluate our models. 5 Precisely,
+it calculates the likelihood of each choice in the
+question, and selects the answer with maximum
+likelihood, then ’accuracy’ is used as the evaluation
+metric. The overall performance is calculated as
+the average accuracy of the model in 57 domains.
+Baselines. Our comparison includes a range
+of both open-source and closed-source LLMs.
+These comprise LLaMa 2 (Touvron et al., 2023)
+models with 7B, 13B, and 70B parameters, Mistral
+7B (Jiang et al., 2023a), Mixtral 8x7B (Jiang
+et al., 2024) (employing token-level MoE), and the
+GPT3.5 and GPT4 models (OpenAI et al., 2023).
+4.2
+
+MMLU Results
+
+Overall Results. Comparison of our models and
+baselines are illustrated in Table 1.6 In Leeroo
+(opensource), we leveraged 7B, 13B ,and 34B opensource models available on Huggingface as the input to our universe constructor. The cost of Leeroo
+(opensource) is adjusted to match Mixtral, the best
+generic open-source LLM. Our model significantly
+outperforms Mixtral by 5.27% absolute points with
+the same cost. Also, our experts can be executed on
+1 GPU (e.g. A100 with 40GB memory), while Mixtral model requires the access to a high-end computing resources (e.g. GPUs with 100G memory).
+Comparing to LLaMa2 70B, our model achieves
+significantly better performance (+6%), while reducing the cost by 33%. Impressively, Leeroo
+(opensource) achieves competitive performance
+5
+
+Specifically, the following branch is used: https:
+//github.com/EleutherAI/lm-evaluation-harness/
+tree/b281b0921b636bc36ad05c0b0b0763bd6dd43463.
+6
+Dollar costs are calculated based on price documentation
+of the following providers: https://www.together.ai,
+https://openai.com. For GPT3.5 and GPT4 costs, the
+average of input and output costs are considered.
+
+
+100
+
+LLaMa2 70B
+Mixtral 8x7B
+Leeroo (opensource)
+Leeroo (mix)
+
+90
+
+Performance(%)
+
+80
+70
+60
+50
+40
+
+ng
+eri
+
+en
+
+gin
+e
+
+log
+y
+
+re
+
+bio
+
+er
+
+ltu
+cu
+
+oth
+
+cs
+e
+mi
+co
+str
+mp
+y
+ute
+rs
+cie
+nc
+e
+ph
+ysi
+cs
+bu
+sin
+ess
+he
+alt
+h
+ph
+ilo
+sop
+hy
+ch
+
+om
+i
+
+cs
+
+on
+
+liti
+
+ec
+
+po
+
+ph
+y
+
+gy
+
+og
+ra
+
+ge
+
+olo
+
+y
+tor
+
+ych
+
+his
+
+ps
+
+law
+
+ma
+th
+
+30
+
+Figure 5: Per sub-category performances of our Leeroo-orch models and baselines on MMLU benchmark.
+80
+70
+
+Usage of Experts(%)
+
+with GPT3.5 while reducing the cost by 73.3%.
+Then, we add GPT4-turbo as one of the expert
+into the universe constructor, created Leeroo (mix)
+variant. Leeroo (mix) reaches competitive performance with GPT4-turbo, while reducing the cost
+by almost 50%.
+
+60
+
+7B
+13B
+34B
+GPT4
+
+50
+40
+30
+20
+10
+
+Cost-Aware Optimization. Given that the optimization can compute different routing distribution
+within a specified budget, we illustrate the curve of
+performance-cost in Figure 4 for open-source and
+closed-source models. Notably, our Leeroo (opensource) reaches the performance of Mixtral (Jiang
+et al., 2024) while decreasing the cost by 33%. Interestingly, Leeroo (mix) outperforms GPT4-turbo
+by 0.24% absolute point with 75% cost.
+Per Domain Comparison. To further investigate
+the source of improvement in our models, we illustrates the distributions of performances on 17 subcategories (Hendrycks et al., 2021) in Figure 5. A
+standout area of success is in STEM domains, such
+as mathematics and computer science, where the
+Leeroo-orch particularly excels. This impressive
+performance is largely attributed to the incorporation of specialized small models (around 7B) that
+are fine-tuned for tasks in mathematics and coding
+by the community. Furthermore, this approach
+facilitates the identification of domains where there
+is a scarcity of experts. Then, future research can
+focus on improving the performance of these areas
+by developing domain-specific effective experts.
+
+0
+
+open-0.4$ open-0.5$ open-0.6$
+
+mix-5$
+
+mix-10$
+
+mix-15$
+
+Figure 6: Routing distributions of different variants of
+Leeroo-orch models.
+
+Routing Distribution. Figure 6 presents the
+aggregated percentage usage of expert models
+by size for each Leeroo-orch pricing tier. It
+reveals that higher-priced options tend to utilize
+larger models more frequently. A substantial
+inclusion of effective smaller, 7-billion parameter
+(7B) expert models significantly enhances the
+cost-to-performance efficiency. This suggests that
+strategically increasing the use of such smaller
+experts could offer a more economical solution
+while maintaining high-quality outputs.
+
+5
+
+Conclusion and Future Work
+
+The ongoing development of our orchestrator,
+fueled by the self-play loop, promises substantial
+improvements in upcoming iterations. When choosing the best open-source model for each question
+in the MMLU benchmark, we would reach an accuracy of 98% at the computational cost of approxi-
+
+
+mately a 13 billion parameter model. This indicates
+substantial room for growth and optimization.
+The seamless integration of new expert models
+as they emerge are central to our system’s design.
+This continuous process of assessment and
+adaptation not only enhances the Leeroo-orch ’s
+versatility but also its capacity to harness emerging
+AI advancements.
+Our vision revolves around a fundamental
+principle: by narrowing the focus of language
+models, we unlock new horizons of effectiveness
+and efficiency in the realm of LLMs. The current
+landscape of LLMs, though expansive, often
+suffers from a lack of depth and a high degree of
+overlap in knowledge domains. Take mathematics
+as an example: the leading models are predominantly trained on similar datasets, resulting in
+a substantial overlap in their knowledge base.
+To transcend this limitation, we propose a shift
+towards ultra-efficient, domain-specific models —
+experts in fields like algebra, probability, geometry,
+and beyond or even finer-grained. This is where our
+Leeroo-orch steps into the spotlight. It’s not just a
+tool; it’s a guide, showing us precisely where to focus our efforts. The orchestrator’s ability to assess
+and understand the performance of existing models
+allows us to identify gaps in the AI landscape.
+It pinpoints domains where no existing expert
+excels or where larger models are inefficiently
+juggling tasks. This insight is invaluable, enabling
+us to strategically develop domain-specific models
+where they are needed most. As the orchestrator
+evolves, it becomes more adept at recognizing
+opportunities for new domain experts, thereby
+continuously elevating the system’s performance.
+We are not just assembling a collection of models;
+we are constructing a dynamic AI ecosystem that
+learns, adapts, and excels, pushing us towards a
+future where AI is not only comprehensive but also
+deeply specialized and remarkably efficient.
+
+References
+Edward Beeching, Clémentine Fourrier, Nathan Habib,
+Sheon Han, Nathan Lambert, Nazneen Rajani, Omar
+Sanseviero, Lewis Tunstall, and Thomas Wolf. 2023.
+Open llm leaderboard. https://huggingface.co/
+spaces/HuggingFaceH4/open_llm_leaderboard.
+Lingjiao Chen, Matei Zaharia, and James Zou. 2023.
+Frugalgpt: How to use large language models while
+reducing cost and improving performance.
+Peter Clark, Isaac Cowhey, Oren Etzioni, Tushar Khot,
+
+Ashish Sabharwal, Carissa Schoenick, and Oyvind
+Tafjord. 2018. Think you have solved question
+answering? try arc, the ai2 reasoning challenge.
+William Fedus, Barret Zoph, and Noam Shazeer. 2021.
+Switch transformers: Scaling to trillion parameter
+models with simple and efficient sparsity.
+Leo Gao, Jonathan Tow, Stella Biderman, Sid Black,
+Anthony DiPofi, Charles Foster, Laurence Golding,
+Jeffrey Hsu, Kyle McDonell, Niklas Muennighoff,
+Jason Phang, Laria Reynolds, Eric Tang, Anish Thite,
+Ben Wang, Kevin Wang, and Andy Zou. 2021. A
+framework for few-shot language model evaluation.
+Dan Hendrycks, Collin Burns, Steven Basart, Andy
+Zou, Mantas Mazeika, Dawn Song, and Jacob
+Steinhardt. 2021. Measuring massive multitask
+language understanding.
+Albert Q. Jiang, Alexandre Sablayrolles, Arthur Mensch,
+Chris Bamford, Devendra Singh Chaplot, Diego
+de las Casas, Florian Bressand, Gianna Lengyel,
+Guillaume Lample, Lucile Saulnier, Lélio Renard
+Lavaud, Marie-Anne Lachaux, Pierre Stock, Teven Le
+Scao, Thibaut Lavril, Thomas Wang, Timothée
+Lacroix, and William El Sayed. 2023a. Mistral 7b.
+Albert Q. Jiang, Alexandre Sablayrolles, Antoine
+Roux, Arthur Mensch, Blanche Savary, Chris Bamford, Devendra Singh Chaplot, Diego de las Casas,
+Emma Bou Hanna, Florian Bressand, Gianna Lengyel,
+Guillaume Bour, Guillaume Lample, Lélio Renard
+Lavaud, Lucile Saulnier, Marie-Anne Lachaux,
+Pierre Stock, Sandeep Subramanian, Sophia Yang,
+Szymon Antoniak, Teven Le Scao, Théophile Gervet,
+Thibaut Lavril, Thomas Wang, Timothée Lacroix,
+and William El Sayed. 2024. Mixtral of experts.
+Dongfu Jiang, Xiang Ren, and Bill Yuchen Lin. 2023b.
+LLM-blender: Ensembling large language models
+with pairwise ranking and generative fusion. In
+Proceedings of the 61st Annual Meeting of the
+Association for Computational Linguistics (Volume 1:
+Long Papers), pages 14165–14178, Toronto, Canada.
+Association for Computational Linguistics.
+Andreas Krause and Daniel Golovin. 2014. Submodular
+function maximization. In Tractability.
+Percy Liang, Rishi Bommasani, Tony Lee, Dimitris
+Tsipras, Dilara Soylu, Michihiro Yasunaga, Yian
+Zhang, Deepak Narayanan, Yuhuai Wu, Ananya
+Kumar, Benjamin Newman, Binhang Yuan, Bobby
+Yan, Ce Zhang, Christian Cosgrove, Christopher D.
+Manning, Christopher Ré, Diana Acosta-Navas,
+Drew A. Hudson, Eric Zelikman, Esin Durmus, Faisal
+Ladhak, Frieda Rong, Hongyu Ren, Huaxiu Yao, Jue
+Wang, Keshav Santhanam, Laurel Orr, Lucia Zheng,
+Mert Yuksekgonul, Mirac Suzgun, Nathan Kim,
+Neel Guha, Niladri Chatterji, Omar Khattab, Peter
+Henderson, Qian Huang, Ryan Chi, Sang Michael
+Xie, Shibani Santurkar, Surya Ganguli, Tatsunori
+Hashimoto, Thomas Icard, Tianyi Zhang, Vishrav
+Chaudhary, William Wang, Xuechen Li, Yifan Mai,
+
+
+Yuhui Zhang, and Yuta Koreeda. 2023. Holistic
+evaluation of language models.
+Yixin Liu and Pengfei Liu. 2021. SimCLS: A simple
+framework for contrastive learning of abstractive
+summarization. In Proceedings of the 59th Annual
+Meeting of the Association for Computational Linguistics and the 11th International Joint Conference
+on Natural Language Processing (Volume 2: Short
+Papers), pages 1065–1072, Online. Association for
+Computational Linguistics.
+OpenAI, :, Josh Achiam, Steven Adler, Sandhini Agarwal, Lama Ahmad, Ilge Akkaya, Florencia Leoni Aleman, Diogo Almeida, Janko Altenschmidt, Sam Altman, Shyamal Anadkat, Red Avila, Igor Babuschkin,
+Suchir Balaji, Valerie Balcom, Paul Baltescu, Haiming Bao, Mo Bavarian, Jeff Belgum, Irwan Bello,
+Jake Berdine, Gabriel Bernadett-Shapiro, Christopher
+Berner, Lenny Bogdonoff, Oleg Boiko, Madelaine
+Boyd, Anna-Luisa Brakman, Greg Brockman, Tim
+Brooks, Miles Brundage, Kevin Button, Trevor Cai,
+Rosie Campbell, Andrew Cann, Brittany Carey,
+Chelsea Carlson, Rory Carmichael, Brooke Chan,
+Che Chang, Fotis Chantzis, Derek Chen, Sully Chen,
+Ruby Chen, Jason Chen, Mark Chen, Ben Chess,
+Chester Cho, Casey Chu, Hyung Won Chung, Dave
+Cummings, Jeremiah Currier, Yunxing Dai, Cory Decareaux, Thomas Degry, Noah Deutsch, Damien Deville, Arka Dhar, David Dohan, Steve Dowling, Sheila
+Dunning, Adrien Ecoffet, Atty Eleti, Tyna Eloundou,
+David Farhi, Liam Fedus, Niko Felix, Simón Posada
+Fishman, Juston Forte, Isabella Fulford, Leo Gao, Elie
+Georges, Christian Gibson, Vik Goel, Tarun Gogineni,
+Gabriel Goh, Rapha Gontijo-Lopes, Jonathan Gordon,
+Morgan Grafstein, Scott Gray, Ryan Greene, Joshua
+Gross, Shixiang Shane Gu, Yufei Guo, Chris Hallacy,
+Jesse Han, Jeff Harris, Yuchen He, Mike Heaton,
+Johannes Heidecke, Chris Hesse, Alan Hickey, Wade
+Hickey, Peter Hoeschele, Brandon Houghton, Kenny
+Hsu, Shengli Hu, Xin Hu, Joost Huizinga, Shantanu
+Jain, Shawn Jain, Joanne Jang, Angela Jiang, Roger
+Jiang, Haozhun Jin, Denny Jin, Shino Jomoto, Billie
+Jonn, Heewoo Jun, Tomer Kaftan, Łukasz Kaiser,
+Ali Kamali, Ingmar Kanitscheider, Nitish Shirish
+Keskar, Tabarak Khan, Logan Kilpatrick, Jong Wook
+Kim, Christina Kim, Yongjik Kim, Hendrik Kirchner,
+Jamie Kiros, Matt Knight, Daniel Kokotajlo, Łukasz
+Kondraciuk, Andrew Kondrich, Aris Konstantinidis,
+Kyle Kosic, Gretchen Krueger, Vishal Kuo, Michael
+Lampe, Ikai Lan, Teddy Lee, Jan Leike, Jade Leung,
+Daniel Levy, Chak Ming Li, Rachel Lim, Molly Lin,
+Stephanie Lin, Mateusz Litwin, Theresa Lopez, Ryan
+Lowe, Patricia Lue, Anna Makanju, Kim Malfacini,
+Sam Manning, Todor Markov, Yaniv Markovski,
+Bianca Martin, Katie Mayer, Andrew Mayne,
+Bob McGrew, Scott Mayer McKinney, Christine
+McLeavey, Paul McMillan, Jake McNeil, David Medina, Aalok Mehta, Jacob Menick, Luke Metz, Andrey
+Mishchenko, Pamela Mishkin, Vinnie Monaco, Evan
+Morikawa, Daniel Mossing, Tong Mu, Mira Murati,
+Oleg Murk, David Mély, Ashvin Nair, Reiichiro
+Nakano, Rajeev Nayak, Arvind Neelakantan, Richard
+Ngo, Hyeonwoo Noh, Long Ouyang, Cullen O’Keefe,
+
+Jakub Pachocki, Alex Paino, Joe Palermo, Ashley
+Pantuliano, Giambattista Parascandolo, Joel Parish,
+Emy Parparita, Alex Passos, Mikhail Pavlov, Andrew
+Peng, Adam Perelman, Filipe de Avila Belbute Peres,
+Michael Petrov, Henrique Ponde de Oliveira Pinto,
+Michael, Pokorny, Michelle Pokrass, Vitchyr Pong,
+Tolly Powell, Alethea Power, Boris Power, Elizabeth
+Proehl, Raul Puri, Alec Radford, Jack Rae, Aditya
+Ramesh, Cameron Raymond, Francis Real, Kendra
+Rimbach, Carl Ross, Bob Rotsted, Henri Roussez,
+Nick Ryder, Mario Saltarelli, Ted Sanders, Shibani
+Santurkar, Girish Sastry, Heather Schmidt, David
+Schnurr, John Schulman, Daniel Selsam, Kyla
+Sheppard, Toki Sherbakov, Jessica Shieh, Sarah
+Shoker, Pranav Shyam, Szymon Sidor, Eric Sigler,
+Maddie Simens, Jordan Sitkin, Katarina Slama, Ian
+Sohl, Benjamin Sokolowsky, Yang Song, Natalie
+Staudacher, Felipe Petroski Such, Natalie Summers,
+Ilya Sutskever, Jie Tang, Nikolas Tezak, Madeleine
+Thompson, Phil Tillet, Amin Tootoonchian, Elizabeth
+Tseng, Preston Tuggle, Nick Turley, Jerry Tworek,
+Juan Felipe Cerón Uribe, Andrea Vallone, Arun
+Vijayvergiya, Chelsea Voss, Carroll Wainwright,
+Justin Jay Wang, Alvin Wang, Ben Wang, Jonathan
+Ward, Jason Wei, CJ Weinmann, Akila Welihinda, Peter Welinder, Jiayi Weng, Lilian Weng, Matt Wiethoff,
+Dave Willner, Clemens Winter, Samuel Wolrich,
+Hannah Wong, Lauren Workman, Sherwin Wu, Jeff
+Wu, Michael Wu, Kai Xiao, Tao Xu, Sarah Yoo,
+Kevin Yu, Qiming Yuan, Wojciech Zaremba, Rowan
+Zellers, Chong Zhang, Marvin Zhang, Shengjia Zhao,
+Tianhao Zheng, Juntang Zhuang, William Zhuk, and
+Barret Zoph. 2023. Gpt-4 technical report.
+Mathieu Ravaut, Shafiq Joty, and Nancy Chen. 2022.
+SummaReranker: A multi-task mixture-of-experts
+re-ranking framework for abstractive summarization.
+In Proceedings of the 60th Annual Meeting of the
+Association for Computational Linguistics (Volume
+1: Long Papers), pages 4504–4524, Dublin, Ireland.
+Association for Computational Linguistics.
+Noam Shazeer, Azalia Mirhoseini, Krzysztof Maziarz,
+Andy Davis, Quoc Le, Geoffrey Hinton, and Jeff
+Dean. 2017. Outrageously large neural networks:
+The sparsely-gated mixture-of-experts layer.
+Hugo Touvron, Louis Martin, Kevin Stone, Peter
+Albert, Amjad Almahairi, Yasmine Babaei, Nikolay
+Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti
+Bhosale, Dan Bikel, Lukas Blecher, Cristian Canton
+Ferrer, Moya Chen, Guillem Cucurull, David Esiobu,
+Jude Fernandes, Jeremy Fu, Wenyin Fu, Brian
+Fuller, Cynthia Gao, Vedanuj Goswami, Naman
+Goyal, Anthony Hartshorn, Saghar Hosseini, Rui
+Hou, Hakan Inan, Marcin Kardas, Viktor Kerkez,
+Madian Khabsa, Isabel Kloumann, Artem Korenev,
+Punit Singh Koura, Marie-Anne Lachaux, Thibaut
+Lavril, Jenya Lee, Diana Liskovich, Yinghai Lu,
+Yuning Mao, Xavier Martinet, Todor Mihaylov,
+Pushkar Mishra, Igor Molybog, Yixin Nie, Andrew
+Poulton, Jeremy Reizenstein, Rashi Rungta, Kalyan
+Saladi, Alan Schelten, Ruan Silva, Eric Michael
+Smith, Ranjan Subramanian, Xiaoqing Ellen Tan,
+
+
+Binh Tang, Ross Taylor, Adina Williams, Jian Xiang
+Kuan, Puxin Xu, Zheng Yan, Iliyan Zarov, Yuchen
+Zhang, Angela Fan, Melanie Kambadur, Sharan
+Narang, Aurelien Rodriguez, Robert Stojnic, Sergey
+Edunov, and Thomas Scialom. 2023. Llama 2: Open
+foundation and fine-tuned chat models.
+

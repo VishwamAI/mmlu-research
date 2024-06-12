@@ -1,0 +1,29 @@
+1. LLaMA: Open and Efficient Foundation Language Models
+   Link: https://paperswithcode.com/paper/llama-open-and-efficient-foundation-language-1
+
+2. Llama 2: Open Foundation and Fine-Tuned Chat Models
+   Link: https://paperswithcode.com/paper/llama-2-open-foundation-and-fine-tuned-chat
+
+3. Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference
+   Link: https://paperswithcode.com/paper/chatbot-arena-an-open-platform-for-evaluating
+
+4. LMSYS-Chat-1M: A Large-Scale Real-World LLM Conversation Dataset
+   Link: https://paperswithcode.com/paper/lmsys-chat-1m-a-large-scale-real-world-llm
+
+5. Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena
+   Link: https://paperswithcode.com/paper/judging-llm-as-a-judge-with-mt-bench-and-1
+
+6. UL2: Unifying Language Learning Paradigms
+   Link: https://paperswithcode.com/paper/unifying-language-learning-paradigms
+
+7. RoBERTa: A Robustly Optimized BERT Pretraining Approach
+   Link: https://paperswithcode.com/paper/roberta-a-robustly-optimized-bert-pretraining
+
+8. Negating Negatives: Alignment without Human Positive Samples via Distributional Dispreference Optimization
+   Link: https://paperswithcode.com/paper/negating-negatives-alignment-without-human
+
+9. Generation Meets Verification: Accelerating Large Language Model Inference with Smart Parallel Auto-Correct Decoding
+   Link: https://paperswithcode.com/paper/generation-meets-verification-accelerating
+
+10. LaCo: Large Language Model Pruning via Layer Collapse
+    Link: https://paperswithcode.com/paper/laco-large-language-model-pruning-via-layer

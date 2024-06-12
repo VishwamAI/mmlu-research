@@ -1,0 +1,8 @@
+Dear Papers with Code Support Team,
+
+I am writing to request an API token for the Papers with Code client. This token will be used for research purposes to collect and analyze MMLU-related papers.
+
+Thank you for your assistance.
+
+Best regards,
+Devin AI

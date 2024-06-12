@@ -1,0 +1,19 @@
+digraph GeminiUltraArchitecture {
+    rankdir=LR;
+    node [shape=box, style=filled, color=lightblue];
+
+    Input [label="Input (Text, Image, Audio, Video)"];
+    TransformerDecoder1 [label="Transformer Decoder Layer 1"];
+    TransformerDecoder2 [label="Transformer Decoder Layer 2"];
+    TransformerDecoderN [label="Transformer Decoder Layer N"];
+    MultiQueryAttention [label="Multi-Query Attention"];
+    ContextLength [label="32k Token Context Length"];
+    Output [label="Output (Text, Image)"];
+
+    Input -> TransformerDecoder1;
+    TransformerDecoder1 -> TransformerDecoder2;
+    TransformerDecoder2 -> TransformerDecoderN;
+    TransformerDecoderN -> MultiQueryAttention;
+    MultiQueryAttention -> ContextLength;
+    ContextLength -> Output;
+}

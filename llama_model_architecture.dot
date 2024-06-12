@@ -1,0 +1,24 @@
+digraph LLaMAModelArchitecture {
+    rankdir=LR;
+    node [shape=box, style=filled, color=lightblue];
+
+    subgraph cluster_0 {
+        label = "LLaMA Model Architecture";
+        style=filled;
+        color=lightgrey;
+        node [style=filled, color=white];
+
+        InputData [label="Input Data\n(Text, Images)"];
+        Preprocessing [label="Preprocessing\n(Data Cleaning, Filtering)"];
+        TransformerEncoder [label="Transformer Encoder\n(Pre-normalization, SwiGLU Activation)"];
+        AttentionMechanisms [label="Attention Mechanisms\n(Multi-head Attention)"];
+        OutputGeneration [label="Output Generation\n(Text Output)"];
+        PostProcessing [label="Post-Processing\n(Filtering, Summarization)"];
+
+        InputData -> Preprocessing;
+        Preprocessing -> TransformerEncoder;
+        TransformerEncoder -> AttentionMechanisms;
+        AttentionMechanisms -> OutputGeneration;
+        OutputGeneration -> PostProcessing;
+    }
+}
